@@ -1,0 +1,845 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Advent Calendar of Love</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0f1724; --card:#0b1220; --accent:#ff7aa2; --muted:#9aa4b2;
+    --glass: rgba(255,255,255,0.04);
+    --card-radius:16px;
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
+
+  html,body{
+    height:100%;margin:0;
+    background:
+      radial-gradient(circle at 10% 10%, rgba(255,122,162,0.06), transparent 60%),
+      #071126;
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-attachment: fixed;
+    color:#e6eef6;
+  }
+
+  .container{max-width:1100px;margin:32px auto;padding:20px;}
+
+  header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
+  .brand{display:flex;gap:12px;align-items:center}
+
+  .logo{width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#6eb3ff);
+    display:grid;place-items:center;font-weight:800;color:#102840;font-size:20px;box-shadow:0 6px 20px rgba(0,0,0,0.4);}
+
+  h1{font-size:20px;margin:0}
+  p.lead{margin:0;color:var(--muted);font-size:14px}
+
+  .controls{display:flex;gap:10px;align-items:center}
+  button, .btn{
+    background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+    border:1px solid rgba(255,255,255,0.05); color:inherit;
+    padding:10px 14px;border-radius:10px;
+    cursor:pointer;font-weight:600;font-size:13px;
+  }
+
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(180px,1fr));
+    gap:22px;margin-top:24px;padding:10px;
+  }
+
+  .door{
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius:16px;padding:20px;position:relative;min-height:160px;
+    display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;
+    box-shadow:0 6px 20px rgba(2,6,23,0.6);
+    border:1px solid rgba(255,255,255,0.03);
+    transition:.28s ease;
+  }
+  .door:hover{transform:translateY(-6px);box-shadow:0 12px 30px rgba(2,6,23,0.7)}
+
+  .day-num{font-weight:800;font-size:28px;background:linear-gradient(90deg,var(--accent),#7dd3fc);
+    -webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:10px;}
+
+  .summary{font-size:13px;color:var(--muted);margin-top:6px}
+
+  .open-btn{margin-top:14px;align-self:stretch;text-align:center}
+
+  .status{position:absolute;top:10px;right:10px;font-size:12px;padding:6px 8px;border-radius:999px;}
+  .status.opened{background:linear-gradient(90deg,#21d07a,#3be8b0);color:#052016}
+  .status.locked{background:rgba(255,255,255,0.03);color:var(--muted)}
+
+  /* Modal */
+  .modal-backdrop{
+    position:fixed;inset:0;background:rgba(2,6,23,0.85);
+    display:none;place-items:center;z-index:999;backdrop-filter:blur(6px);
+  }
+  .modal{
+    width:min(860px,92%);background:linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.08));
+    border-radius:16px;padding:18px;border:1px solid rgba(255,255,255,0.10);
+    max-height:90vh;overflow:hidden;display:flex;flex-direction:column;
+  }
+  .modal-header{display:flex;align-items:center;justify-content:space-between;gap:10px}
+
+  .options{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+  @media(max-width:760px){ .options{grid-template-columns:1fr;} }
+  /* When a day only has one option, center it horizontally */
+  .options.single { display:flex; justify-content:center; align-items:flex-start; }
+  .options.single .option-card { max-width:220px; width:100%; }
+
+  /* Content area inside modal: limit height and make scrollable */
+  #optionContent{ max-height:60vh; overflow:auto; margin-top:14px; }
+  #optionContent img, #optionContent video{ max-width:100%; max-height:64vh; object-fit:contain; display:block; margin:8px auto; border-radius:8px; }
+
+  .option-card{background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+    padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.05)}
+  .option-card h3{margin:0;font-size:14px}
+  .option-card p{margin:8px 0 0 0;color:var(--muted);font-size:13px;}
+  .option-card button{margin-top:12px;}
+
+  /* Fortune cookie styles */
+  .fortune-wrap{display:grid;place-items:center;padding:20px}
+  .cookie{width:160px;height:100px;border-radius:100px 100px 60px 60px;position:relative;background:linear-gradient(135deg,#f7d38a,#f0b84a);box-shadow:0 8px 20px rgba(0,0,0,0.35);cursor:pointer;transition:transform .18s ease}
+  .cookie:active{transform:scale(.98)}
+  .cookie .left,.cookie .right{position:absolute;top:0;width:50%;height:100%;overflow:visible;display:block}
+  .cookie .left{left:0;transform-origin:right center}
+  .cookie .right{right:0;transform-origin:left center}
+  .cookie .left .piece, .cookie .right .piece{width:200%;height:120%;background:inherit;border-radius:inherit;position:absolute;top:-10%;}
+  .cookie .left .piece{left:-100%}
+  .cookie .right .piece{right:-100%}
+  .cookie .left, .cookie .right{z-index:2}
+  .cookie .paper{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:68%;background:#fff;color:#111;padding:10px 12px;border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,0.12);opacity:0;transform-origin:center;transition:opacity .28s ease, transform .4s cubic-bezier(.2,.8,.2,1);z-index:1}
+  .cookie .paper.revealed{opacity:1;transform:translate(-50%,-64%) scale(1)}
+  .cookie.crack-1 .left{transform:translateX(-6px) rotate(-4deg)}
+  .cookie.crack-1 .right{transform:translateX(6px) rotate(4deg)}
+  .cookie.crack-2 .left{transform:translateX(-18px) rotate(-8deg)}
+  .cookie.crack-2 .right{transform:translateX(18px) rotate(8deg)}
+  .cookie.crack-3 .left{transform:translate(-38px,-6px) rotate(-18deg)}
+  .cookie.crack-3 .right{transform:translate(38px,-6px) rotate(18deg)}
+  .fortune-text{margin-top:12px;opacity:0;transition:opacity .4s ease;font-size:15px;text-align:center}
+  .fortune-text.revealed{opacity:1}
+
+  /* Sticker gallery */
+  .sticker-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+  .sticker{background:#071126;padding:6px;border-radius:10px;display:flex;flex-direction:column;align-items:center}
+  .sticker img{max-width:100%;height:110px;object-fit:contain;border-radius:6px}
+  .sticker .actions{margin-top:8px;display:flex;gap:8px}
+  @media(max-width:760px){ .sticker-grid{grid-template-columns:repeat(2,1fr);} }
+
+  .small{font-size:12px;color:var(--muted)}
+
+  .confetti-piece{position:fixed;width:10px;height:14px;z-index:1500;opacity:0.95;transform-origin:center}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="brand">
+      <div class="logo">💌</div>
+      <div>
+        <h1>An Advent calendar for a December full of Love</h1>
+        <p class="lead">Made for My Babygirl, by hers❤️</p>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="muted" id="todayLabel"></div>
+      <button id="settingsBtn" class="btn">Settings ⚙️</button>
+    </div>
+  </header>
+
+  <div class="progress"><i id="progressBar"></i></div>
+  <main><section class="grid" id="calendarGrid"></section></main>
+</div>
+
+<!-- Modal -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div id="modalTitle" style="font-weight:800;font-size:18px"></div>
+        <div class="small" id="modalSub"></div>
+      </div>
+      <button id="closeModal" class="btn">Close</button>
+    </div>
+    <div class="options" id="optionsArea"></div>
+  </div>
+</div>
+
+<script>
+
+/* ---------------- Base Data ---------------- */
+/* ⭐⭐⭐ THIS IS WHERE YOU EDIT THE QUESTIONS ⭐⭐⭐ */
+
+const DEFAULT_CONTENT = [
+  {
+    day: 1,
+    question: "my current nickname for you",
+    answer: "babygirl",
+    title: "A Hopeful Start",
+    // Example: this option shows plain text as the reward
+    options:[
+      {label:"A Hopeful Start", short:"Click Below to reveal your gift", long:"I love you more every day.", rewardType:"textfile", mediaUrl:"Assests/LoveLetter.txt"},
+    ]
+  },
+  {
+    day: 2,
+    question: "introduced us to eachother",
+    answer: "ryan",
+    title: "Day 2 Surprise",
+    // Example: video reward (host a small mp4 or link)
+    options:[
+      {label:"A glimpse into the past", short:"Click Below to reveal your gift", long:"I love you more every day.", rewardType:"textfile", mediaUrl:"Assests/NotesEntry.txt"},
+    ]
+  },
+  {
+    day: 3,
+    question: "retired nickname for me",
+    answer: "sir sameh",
+    title: "Day 3 Surprise",
+    options:[
+      {label:"Video", short:"A short clip", long:"A little message I recorded.", rewardType:"video", mediaUrl:"/Assests/VideoMessage.mp4"} ]
+  },
+  {
+    day: 4,
+    question: "your favourite nickname for me",
+    answer: "baby",
+    title: "Day 4 Surprise",
+    options:[
+      {label:"20 Things", short:"Click Below to reveal your gift", long:"I love you more every day.", rewardType:"textfile", mediaUrl:"Assests/20ThingsILove.txt"}
+    ]
+  },
+  {
+    day: 5,
+    question: "N....F....Tea?",
+    answer: "frida",
+    title: "Day 5 Surprise",
+    options:[
+      {label:"A Proud Baby", short:"Click Below to reveal your gift", long:"I love you more every day.", rewardType:"textfile", mediaUrl:"Assests/Proud.txt"}
+    ]
+  },
+  {
+    day: 6,
+    question: "I can get lost in them for days..",
+    answer: "my eyes",
+    title: "Day 6 Surprise",
+    options:[
+      {label:"Photo", short:"An attempt", long:"ps. Im shit at this", rewardType:"image", mediaUrl:"Assests/drawing.png"}
+    ]
+  },
+  {
+    day: 7,
+    question: "my favourite activity for us ",
+    answer: "videocall",
+    title: "Day 7 Surprise",
+      options:[
+        {label:"Fortune Cookie", short:"Tap the cookie 3 times to break it", rewardType:"fortune", fortuneText:"we'll grow old together and stay madly in love."}
+      ]
+  },
+  {
+    day: 8,
+    question: "in case you foolishly forget..",
+    answer: "i am never not thinking of you",
+    title: "Day 8 Surprise",
+    options:[
+      {label:"Stickers", short:"a bunch of your most used stickers, with a twist", rewardType:"stickers", long:"these took longer than they look LMAO.", mediaUrls:[
+        "Assests/Stickers/AAAAH_hand.png",
+        "Assests/Stickers/Black man_hand.png",
+        "Assests/Stickers/choke_hand.png",
+        "Assests/Stickers/pingo_hand.png",
+        "Assests/Stickers/punch floor_hand.png",
+        "Assests/Stickers/Simpson_hand.png"
+      ]}
+    ]
+  },
+  {
+    day: 9,
+    question: "Whos more better looking, me or Rowoon?",
+    answer: "rowoon",
+    title: "Day 9 Surprise",
+    options:[
+      {label:"Sweet", short:"A love message", long:"...", mediaType:"none"},
+      {label:"Photo", short:"A cute memory", long:"...", mediaType:"none"},
+      {label:"Fun", short:"A small challenge", long:"...", mediaType:"none"}
+    ]
+  },
+  {
+    day: 10,
+    question: "Who is the big spoon?",
+    answer: "sameh",
+    title: "Day 10 Surprise",
+    options:[
+      {label:"Sweet", short:"A love message", long:"...", mediaType:"none"},
+      {label:"Photo", short:"A cute memory", long:"...", mediaType:"none"},
+      {label:"Fun", short:"A small challenge", long:"...", mediaType:"none"}
+    ]
+  },
+  {
+    day: 11,
+    question: "what was the first compliment you ever gave me?",
+    answer: "cute",
+    title: "Day 11 Surprise",
+    options:[
+      {label:"Sweet", short:"A love message", long:"...", mediaType:"none"},
+      {label:"Photo", short:"A cute memory", long:"...", mediaType:"none"},
+      {label:"Fun", short:"A small challenge", long:"...", mediaType:"none"}
+    ]
+  },
+  {
+    day: 12,
+    question: "What is my nickname for you?",
+    answer: "babygirl",
+    title: "Day 1 Surprise",
+    options:[
+      {label:"Sweet", short:"A love message", long:"...", mediaType:"none"},
+      {label:"Photo", short:"A cute memory", long:"...", mediaType:"none"},
+      {label:"Fun", short:"A small challenge", long:"...", mediaType:"none"}
+    ]
+  },
+  {
+    day: 13,
+    question: "What is my nickname for you?",
+    answer: "babygirl",
+    title: "Day 1 Surprise",
+    options:[
+      {label:"Sweet", short:"A love message", long:"...", mediaType:"none"},
+      {label:"Photo", short:"A cute memory", long:"...", mediaType:"none"},
+      {label:"Fun", short:"A small challenge", long:"...", mediaType:"none"}
+    ]
+  },
+  {
+    day: 14,
+    question: "What is my nickname for you?",
+    answer: "babygirl",
+    title: "Day 1 Surprise",
+    options:[
+      {label:"Sweet", short:"A love message", long:"...", mediaType:"none"},
+      {label:"Photo", short:"A cute memory", long:"...", mediaType:"none"},
+      {label:"Fun", short:"A small challenge", long:"...", mediaType:"none"}
+    ]
+  },
+  {
+    day: 15,
+    question: "What is my nickname for you?",
+    answer: "babygirl",
+    title: "Day 1 Surprise",
+    options:[
+      {label:"Sweet", short:"A love message", long:"...", mediaType:"none"},
+      {label:"Photo", short:"A cute memory", long:"...", mediaType:"none"},
+      {label:"Fun", short:"A small challenge", long:"...", mediaType:"none"}
+    ]
+  },
+  {
+    day: 16,
+    question: "What is my nickname for you?",
+    answer: "babygirl",
+    title: "Day 1 Surprise",
+    options:[
+      {label:"Sweet", short:"A love message", long:"...", mediaType:"none"},
+      {label:"Photo", short:"A cute memory", long:"...", mediaType:"none"},
+      {label:"Fun", short:"A small challenge", long:"...", mediaType:"none"}
+    ]
+  },
+  {
+    day: 17,
+    question: "What is my nickname for you?",
+    answer: "babygirl",
+    title: "Day 1 Surprise",
+    options:[
+      {label:"Sweet", short:"A love message", long:"...", mediaType:"none"},
+      {label:"Photo", short:"A cute memory", long:"...", mediaType:"none"},
+      {label:"Fun", short:"A small challenge", long:"...", mediaType:"none"}
+    ]
+  },
+  {
+    day: 18,
+    question: "What is my nickname for you?",
+    answer: "babygirl",
+    title: "Day 1 Surprise",
+    options:[
+      {label:"Sweet", short:"A love message", long:"...", mediaType:"none"},
+      {label:"Photo", short:"A cute memory", long:"...", mediaType:"none"},
+      {label:"Fun", short:"A small challenge", long:"...", mediaType:"none"}
+    ]
+  },
+  {
+    day: 19,
+    question: "What is my nickname for you?",
+    answer: "babygirl",
+    title: "Day 1 Surprise",
+    options:[
+      {label:"Sweet", short:"A love message", long:"...", mediaType:"none"},
+      {label:"Photo", short:"A cute memory", long:"...", mediaType:"none"},
+      {label:"Fun", short:"A small challenge", long:"...", mediaType:"none"}
+    ]
+  },
+  {
+    day: 20,
+    question: "What is my nickname for you?",
+    answer: "babygirl",
+    title: "Day 1 Surprise",
+    options:[
+      {label:"Sweet", short:"A love message", long:"...", mediaType:"none"},
+      {label:"Photo", short:"A cute memory", long:"...", mediaType:"none"},
+      {label:"Fun", short:"A small challenge", long:"...", mediaType:"none"}
+    ]
+  },
+  {
+    day: 21,
+    question: "What is my nickname for you?",
+    answer: "babygirl",
+    title: "Day 1 Surprise",
+    options:[
+      {label:"Sweet", short:"A love message", long:"...", mediaType:"none"},
+      {label:"Photo", short:"A cute memory", long:"...", mediaType:"none"},
+      {label:"Fun", short:"A small challenge", long:"...", mediaType:"none"}
+    ]
+  },
+  {
+    day: 22,
+    question: "What is my nickname for you?",
+    answer: "babygirl",
+    title: "Day 1 Surprise",
+    options:[
+      {label:"Sweet", short:"A love message", long:"...", mediaType:"none"},
+      {label:"Photo", short:"A cute memory", long:"...", mediaType:"none"},
+      {label:"Fun", short:"A small challenge", long:"...", mediaType:"none"}
+    ]
+  },
+  {
+    day: 23,
+    question: "What is my nickname for you?",
+    answer: "babygirl",
+    title: "Day 1 Surprise",
+    options:[
+      {label:"Sweet", short:"A love message", long:"...", mediaType:"none"},
+      {label:"Photo", short:"A cute memory", long:"...", mediaType:"none"},
+      {label:"Fun", short:"A small challenge", long:"...", mediaType:"none"}
+    ]
+  },
+  {
+    day: 24,
+    question: "What is my nickname for you?",
+    answer: "babygirl",
+    title: "Day 1 Surprise",
+    options:[
+      {label:"Sweet", short:"A love message", long:"...", mediaType:"none"},
+      {label:"Photo", short:"A cute memory", long:"...", mediaType:"none"},
+      {label:"Fun", short:"A small challenge", long:"...", mediaType:"none"}
+    ]
+  },
+  {
+    day: 25,
+    question: "What is my nickname for you?",
+    answer: "babygirl",
+    title: "Day 1 Surprise",
+    options:[
+      {label:"Sweet", short:"A love message", long:"...", mediaType:"none"},
+      {label:"Photo", short:"A cute memory", long:"...", mediaType:"none"},
+      {label:"Fun", short:"A small challenge", long:"...", mediaType:"none"}
+    ]
+  },
+  {
+    day: 26,
+    question: "What is my nickname for you?",
+    answer: "babygirl",
+    title: "Day 1 Surprise",
+    options:[
+      {label:"Sweet", short:"A love message", long:"...", mediaType:"none"},
+      {label:"Photo", short:"A cute memory", long:"...", mediaType:"none"},
+      {label:"Fun", short:"A small challenge", long:"...", mediaType:"none"}
+    ]
+  },
+  {
+    day: 27,
+    question: "What is my nickname for you?",
+    answer: "babygirl",
+    title: "Day 1 Surprise",
+    options:[
+      {label:"Sweet", short:"A love message", long:"...", mediaType:"none"},
+      {label:"Photo", short:"A cute memory", long:"...", mediaType:"none"},
+      {label:"Fun", short:"A small challenge", long:"...", mediaType:"none"}
+    ]
+  },
+  {
+    day: 28,
+    question: "What is my nickname for you?",
+    answer: "babygirl",
+    title: "Day 1 Surprise",
+    options:[
+      {label:"Sweet", short:"A love message", long:"...", mediaType:"none"},
+      {label:"Photo", short:"A cute memory", long:"...", mediaType:"none"},
+      {label:"Fun", short:"A small challenge", long:"...", mediaType:"none"}
+    ]
+  },
+  {
+    day: 29,
+    question: "What is my nickname for you?",
+    answer: "babygirl",
+    title: "Day 1 Surprise",
+    options:[
+      {label:"Sweet", short:"A love message", long:"...", mediaType:"none"},
+      {label:"Photo", short:"A cute memory", long:"...", mediaType:"none"},
+      {label:"Fun", short:"A small challenge", long:"...", mediaType:"none"}
+    ]
+  },
+  {
+    day: 30,
+    question: "What is my nickname for you?",
+    answer: "babygirl",
+    title: "Day 1 Surprise",
+    options:[
+      {label:"Sweet", short:"A love message", long:"...", mediaType:"none"},
+      {label:"Photo", short:"A cute memory", long:"...", mediaType:"none"},
+      {label:"Fun", short:"A small challenge", long:"...", mediaType:"none"}
+    ]
+  },
+  {
+    day: 31,
+    question: "What is my nickname for you?",
+    answer: "babygirl",
+    title: "Day 1 Surprise",
+    options:[
+      {label:"Sweet", short:"A love message", long:"...", mediaType:"none"},
+      {label:"Photo", short:"A cute memory", long:"...", mediaType:"none"},
+      {label:"Fun", short:"A small challenge", long:"...", mediaType:"none"}
+    ]
+  }
+  
+
+  /* Duplicate and modify for days 2–31 */
+];
+
+/* Auto-fill missing days to reach 31 */
+for(let d=1; d<=31; d++){
+  if(!DEFAULT_CONTENT.find(x => x.day === d)){
+    DEFAULT_CONTENT.push({
+      day:d,
+      question:`Your question for day ${d}?`,
+      answer:`answer${d}`,
+      title:`Day ${d} Surprise`,
+      options:[
+        {label:"Option A", short:"...", long:"...", mediaType:"none"},
+        {label:"Option B", short:"...", long:"...", mediaType:"none"},
+        {label:"Option C", short:"...", long:"...", mediaType:"none"}
+      ]
+    });
+  }
+}
+
+/* ---------------- State ---------------- */
+// `responses` stores any text the recipient types for input-type rewards.
+const state={content:DEFAULT_CONTENT,opened:{},chosen:{},responses:{}};
+function saveState(){
+  // Persist only metadata so edits to DEFAULT_CONTENT in the file take effect.
+  const toSave = { opened: state.opened, chosen: state.chosen, responses: state.responses };
+  localStorage.setItem("calState",JSON.stringify(toSave));
+}
+function loadState(){
+  let r = localStorage.getItem("calState");
+  if(!r) return;
+  try{
+    const parsed = JSON.parse(r);
+    if(parsed.opened) state.opened = parsed.opened;
+    if(parsed.chosen) state.chosen = parsed.chosen;
+    if(parsed.responses) state.responses = parsed.responses;
+  }catch(e){
+    console.error('Failed to parse calState from localStorage', e);
+  }
+}
+
+/* ---------------- Rendering ---------------- */
+const grid=document.getElementById("calendarGrid");
+
+function renderCalendar(){
+  grid.innerHTML="";
+  const today = new Date().getDate();
+  document.getElementById("todayLabel").textContent = `Today: ${new Date().toLocaleDateString()}`;
+
+  state.content.forEach(item=>{
+    const day=item.day;
+    const isOpen = !!state.opened[day];
+    const canOpen = day <= today;
+
+    const door=document.createElement("article");
+    door.className="door";
+    if(isOpen) door.classList.add("opened");
+
+    door.innerHTML = `
+      <div class="day-num">DAY ${day}</div>
+      <div class="summary">${item.question}</div>
+      <div class="status ${isOpen?'opened':'locked'}">${isOpen?'Opened':'Locked'}</div>
+      <button class="open-btn btn" data-day="${day}">${isOpen?'View':'Open'}</button>
+    `;
+
+    grid.appendChild(door);
+
+    door.querySelector(".open-btn").onclick = () => {
+      if(!isOpen){
+        const answer = prompt(item.question);
+        if(!answer || answer.trim().toLowerCase() !== item.answer.toLowerCase()){
+          alert("Wrong answer my love ❤️ Try again.");
+          return;
+        }
+        state.opened[day] = true;
+        saveState();
+        renderCalendar();
+      }
+      openModal(day);
+    };
+  });
+}
+
+/* ---------------- Modal ---------------- */
+const modal=document.getElementById("modalBackdrop");
+const modalTitle=document.getElementById("modalTitle");
+const modalSub=document.getElementById("modalSub");
+const optionsArea=document.getElementById("optionsArea");
+
+function openModal(day){
+  const entry = state.content.find(x=>x.day===day);
+  modalTitle.textContent = `Day ${day} — ${entry.title}`;
+  modalSub.textContent = entry.options.map(o=>o.label).join(" • ");
+
+  optionsArea.innerHTML="";
+  entry.options.forEach((opt,idx)=>{
+    const c=document.createElement("div");
+    c.className="option-card";
+    c.innerHTML = `<h3>${opt.label}</h3><p>${opt.short}</p>`;
+
+    const b=document.createElement("button");
+    b.className="btn";
+    b.textContent = state.chosen[day]===idx ? "Revealed ✓" : "Reveal";
+
+    b.onclick = ()=>{
+      try{
+        console.log('option choose clicked', {day, idx});
+        // immediate UI feedback
+        b.textContent = 'Chosen ✓';
+        state.chosen[day]=idx;
+        saveState();
+        renderCalendar();
+        // small timeout to allow UI update before re-rendering modal
+        setTimeout(()=>openModal(day), 80);
+      }catch(e){
+        console.error('choose handler error', e);
+        alert('An error occurred. See console for details.');
+      }
+    };
+
+    c.appendChild(b);
+    optionsArea.appendChild(c);
+  });
+
+  // If there's only one option, center it horizontally
+  if(entry.options.length === 1){
+    optionsArea.classList.add('single');
+  } else {
+    optionsArea.classList.remove('single');
+  }
+
+  // Content area: shows the chosen option's `long` text and optional media
+  let contentArea = document.getElementById('optionContent');
+  if(!contentArea){
+    contentArea = document.createElement('div');
+    contentArea.id = 'optionContent';
+    contentArea.style.marginTop = '14px';
+    contentArea.style.padding = '12px';
+    contentArea.style.borderTop = '1px solid rgba(255,255,255,0.03)';
+    contentArea.style.borderRadius = '8px';
+    contentArea.style.background = 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))';
+    optionsArea.parentNode.appendChild(contentArea);
+  }
+  // ensure content area is visible when opening a day
+  contentArea.style.display = '';
+
+  const chosenIdx = state.chosen[day];
+  if(typeof chosenIdx === 'number'){
+    const opt = entry.options[chosenIdx];
+    const type = opt.rewardType || opt.mediaType || 'none';
+
+    if(type === 'text'){
+      contentArea.innerHTML = `<div style="margin-bottom:10px;font-size:14px;">${opt.long || ''}</div>`;
+    } else if(type === 'textfile' && opt.mediaUrl){
+      contentArea.innerHTML = `<div style="margin-bottom:10px;font-size:14px;">Loading content…</div>`;
+      // Try to fetch the local text file. If the page is opened via file:// some browsers block fetch.
+      fetch(opt.mediaUrl)
+        .then(r=>{
+          if(!r.ok) throw new Error('HTTP ' + r.status);
+          return r.text();
+        })
+        .then(txt=>{
+          // show with preserved line breaks
+          const safe = txt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+          contentArea.innerHTML = `<pre style="white-space:pre-wrap;font-size:14px;line-height:1.45">${safe}</pre>`;
+        })
+        .catch(err=>{
+          console.error('Failed to load textfile', err);
+          contentArea.innerHTML = `
+            <div style="margin-bottom:10px;font-size:14px;color:var(--muted)">Failed to load the text file from <code>${opt.mediaUrl}</code>.</div>
+            <div class="small">If you opened this file directly from your filesystem the browser may block fetching local files. Run a local server from your Desktop and open via <code>http://localhost:8000/index.html</code>.</div>
+            <div class="small" style="margin-top:8px">Run this in PowerShell in your Desktop folder:<pre>py -3 -m http.server 8000</pre></div>
+          `;
+        });
+    } else if(type === 'stickers' || opt.rewardType === 'stickers'){
+      // Render a sticker gallery with download links and instructions for iPhone use
+      const urls = opt.mediaUrls || [];
+      let html = `<div style="margin-bottom:10px;font-size:14px;">${opt.long || ''}</div>`;
+      html += `<div class="sticker-grid">`;
+      urls.forEach((u,si)=>{
+        const name = u.split('/').pop();
+        html += `
+          <div class="sticker">
+            <img src="${u}" alt="sticker-${si}" />
+            <div class="actions">
+              <a class="btn" href="${u}" download="${name}">Download</a>
+            </div>
+          </div>`;
+      });
+      html += `</div>`;
+      html += `<div class="small" style="margin-top:10px">Tip: On iPhone long-press a downloaded image and choose <strong>Save Image</strong>. Then open Messages, drag the photo into a conversation or use the sticker/apps drawer to add it.</div>`;
+      contentArea.innerHTML = html;
+    } else if(type === 'image' && opt.mediaUrl){
+      contentArea.innerHTML = `<div style="margin-bottom:10px;font-size:14px;">${opt.long || ''}</div><img src="${opt.mediaUrl}" style="max-width:100%;border-radius:8px;display:block" />`;
+    } else if(type === 'video' && opt.mediaUrl){
+      contentArea.innerHTML = `<div style="margin-bottom:10px;font-size:14px;">${opt.long || ''}</div><video src="${opt.mediaUrl}" controls style="max-width:100%;border-radius:8px;display:block"></video>`;
+    } else if(type === 'audio' && opt.mediaUrl){
+      contentArea.innerHTML = `<div style="margin-bottom:10px;font-size:14px;">${opt.long || ''}</div><audio src="${opt.mediaUrl}" controls style="width:100%"></audio>`;
+    } else if(type === 'fortune' || opt.rewardType === 'fortune'){
+      // Render interactive fortune cookie that needs 3 taps to break
+      const fortune = opt.fortuneText || opt.long || 'A small fortune awaits you.';
+      contentArea.innerHTML = `
+        <div class="fortune-wrap">
+          <div id="cookie" class="cookie" title="Tap me 3 times">
+            <div class="left"><div class="piece"></div></div>
+            <div class="right"><div class="piece"></div></div>
+            <div id="fortunePaper" class="paper"><div id="fortuneText" style="font-size:15px;line-height:1.3;text-align:center;color:#111">${fortune}</div></div>
+          </div>
+        </div>
+      `;
+
+      const cookieEl = contentArea.querySelector('#cookie');
+      const fortuneEl = contentArea.querySelector('#fortuneText');
+      const fortunePaper = contentArea.querySelector('#fortunePaper');
+      // restore previous clicks if any
+      state.responses[day] = state.responses[day] || {};
+      state.responses[day][chosenIdx] = state.responses[day][chosenIdx] || { fortuneClicks: 0 };
+      let clicks = state.responses[day][chosenIdx].fortuneClicks || 0;
+      // ensure visual matches saved state
+      if(clicks >= 1) cookieEl.classList.add('crack-1');
+      if(clicks >= 2) cookieEl.classList.add('crack-2');
+      if(clicks >= 3){ cookieEl.classList.add('crack-3'); fortunePaper.classList.add('revealed'); }
+
+      cookieEl.addEventListener('click', ()=>{
+        clicks = Math.min(3, clicks + 1);
+        cookieEl.classList.remove('crack-1','crack-2','crack-3');
+        if(clicks === 1) cookieEl.classList.add('crack-1');
+        if(clicks === 2) cookieEl.classList.add('crack-2');
+        if(clicks >= 3){ cookieEl.classList.add('crack-3'); fortunePaper.classList.add('revealed'); launchConfetti(); }
+        // persist clicks for this day/option
+        state.responses[day][chosenIdx].fortuneClicks = clicks;
+        saveState();
+      });
+
+      // small confetti launcher (creates simple falling colored rectangles)
+      function launchConfetti(){
+        const colors = ['#ff7aa2','#ffd166','#7dd3fc','#a78bfa','#9ee493'];
+        for(let i=0;i<24;i++){
+          const c = document.createElement('div');
+          c.className = 'confetti-piece';
+          c.style.background = colors[Math.floor(Math.random()*colors.length)];
+          c.style.left = (50 + (Math.random()*160-80)) + '%';
+          c.style.top = '40%';
+          c.style.transform = `translateY(0) rotate(${Math.random()*360}deg)`;
+          document.body.appendChild(c);
+          // animate to fall
+          const dx = (Math.random()*200-100);
+          const dy = 600 + Math.random()*200;
+          c.animate([
+            { transform: `translateY(0) rotate(${Math.random()*360}deg)`, opacity:1 },
+            { transform: `translate(${dx}px, ${dy}px) rotate(${Math.random()*720}deg)`, opacity:0 }
+          ], { duration: 1200 + Math.random()*600, easing: 'cubic-bezier(.2,.7,.2,1)' });
+          setTimeout(()=>{ try{ c.remove(); }catch(e){} }, 2000);
+        }
+      }
+    } else if(type === 'input'){
+      // ensure object for day
+      state.responses[day] = state.responses[day] || {};
+      const saved = state.responses[day][chosenIdx] || '';
+      // render textarea + save button
+      contentArea.innerHTML = `
+        <div style="margin-bottom:10px;font-size:14px;">${opt.long || ''}</div>
+        <textarea id="rewardInput" style="width:100%;min-height:100px;border-radius:8px;padding:8px">${saved}</textarea>
+        <div style="margin-top:8px;text-align:right"><button id="saveRewardInput" class="btn">Save</button></div>
+      `;
+      document.getElementById('saveRewardInput').onclick = ()=>{
+        const val = document.getElementById('rewardInput').value || '';
+        state.responses[day][chosenIdx] = val;
+        saveState();
+        // give brief feedback
+        const old = document.getElementById('saveRewardInput');
+        old.textContent = 'Saved ✓';
+        setTimeout(()=>{ if(old) old.textContent = 'Save'; },1200);
+      };
+    } else {
+      // fallback: show long text if present
+      contentArea.innerHTML = `<div style="margin-bottom:10px;font-size:14px;">${opt.long || ''}</div>`;
+    }
+  } else {
+    contentArea.innerHTML = '<div class="small">Not Revealed Yet;)</div>';
+  }
+
+  modal.style.display="grid";
+}
+
+document.getElementById("closeModal").onclick=()=>modal.style.display="none";
+
+// Settings button: open modal with a Reset saved state control
+document.getElementById("settingsBtn").onclick = () => {
+  modalTitle.textContent = 'Settings';
+  modalSub.textContent = '';
+  optionsArea.innerHTML = '';
+  // Hide any previously rendered reward content so Settings stays clean
+  const existingContent = document.getElementById('optionContent');
+  if(existingContent){
+    existingContent.style.display = 'none';
+  }
+
+  const card = document.createElement('div');
+  card.className = 'option-card';
+  card.innerHTML = `<h3>Saved Progress</h3><p class="small">Reset opened days, chosen options and any saved replies.</p>`;
+
+  const btn = document.createElement('button');
+  btn.className = 'btn';
+  btn.textContent = 'Reset saved state';
+  btn.onclick = () => {
+    if(!confirm('Reset saved progress? This cannot be undone.')) return;
+    try{
+      localStorage.removeItem('calState');
+      state.opened = {};
+      state.chosen = {};
+      state.responses = {};
+      saveState();
+      renderCalendar();
+      btn.textContent = 'Reset ✓';
+      setTimeout(()=> btn.textContent = 'Reset saved state', 1400);
+    }catch(e){
+      console.error('Failed to reset saved state', e);
+      alert('Failed to reset saved state — see console for details.');
+    }
+  };
+
+  card.appendChild(btn);
+  optionsArea.appendChild(card);
+  modal.style.display = 'grid';
+};
+
+/* ---------------- Init ---------------- */
+loadState();
+renderCalendar();
+</script>
+
+</body>
+</html>
