@@ -555,13 +555,19 @@ const grid=document.getElementById("calendarGrid");
 
 function renderCalendar(){
   grid.innerHTML="";
-  const today = new Date().getDate();
-  document.getElementById("todayLabel").textContent = `Today: ${new Date().toLocaleDateString()}`;
+  const now = new Date();
+  const isDecember = now.getMonth() === 11; // months are 0-indexed (11 = December)
+  const decToday = isDecember ? now.getDate() : 0; // day-of-month in December, otherwise 0
+  document.getElementById("todayLabel").textContent = `Today: ${now.toLocaleDateString()}`;
 
   state.content.forEach(item=>{
     const day=item.day;
     const isOpen = !!state.opened[day];
-    const canOpen = day <= today;
+    // only allow opening when it's December and the calendar day has arrived
+    const canOpen = isDecember && day <= decToday;
+
+    // summary should hide the question until the day arrives (unless already opened)
+    const summaryText = (isOpen || (isDecember && day <= decToday)) ? item.question : `Question will be revealed on Dec ${day}`;
 
     const door=document.createElement("article");
     door.className="door";
@@ -569,14 +575,27 @@ function renderCalendar(){
 
     door.innerHTML = `
       <div class="day-num">DAY ${day}</div>
-      <div class="summary">${item.question}</div>
+      <div class="summary">${summaryText}</div>
       <div class="status ${isOpen?'opened':'locked'}">${isOpen?'Opened':'Locked'}</div>
-      <button class="open-btn btn" data-day="${day}">${isOpen?'View':'Open'}</button>
+      <button class="open-btn btn" data-day="${day}">${isOpen? 'View' : (canOpen ? 'Open' : 'Locked')}</button>
     `;
 
     grid.appendChild(door);
 
-    door.querySelector(".open-btn").onclick = () => {
+    const openBtn = door.querySelector(".open-btn");
+    // disable button for future days until their date arrives
+    if(!canOpen && !isOpen){
+      openBtn.disabled = true;
+      openBtn.title = `Available on day ${day}`;
+      openBtn.style.opacity = '0.7';
+      openBtn.style.cursor = 'not-allowed';
+    }
+
+    openBtn.onclick = () => {
+      if(!canOpen && !isOpen){
+        alert(`This door is locked until day ${day}.`);
+        return;
+      }
       if(!isOpen){
         const answer = prompt(item.question);
         if(!answer || answer.trim().toLowerCase() !== item.answer.toLowerCase()){
