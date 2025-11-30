@@ -531,10 +531,32 @@ for(let d=1; d<=31; d++){
 
 /* ---------------- State ---------------- */
 // `responses` stores any text the recipient types for input-type rewards.
-const state={content:DEFAULT_CONTENT,opened:{},chosen:{},responses:{}};
+// `settings` contains runtime toggles (persisted separately from DEFAULT_CONTENT)
+const state={content:DEFAULT_CONTENT,opened:{},chosen:{},responses:{},settings:{showTestDay:false}};
+// A lightweight test-day entry (not part of DEFAULT_CONTENT). Day 0 is reserved for testing.
+const TEST_DAY = {
+  day: 0,
+  question: "what is the word that start with te and ends with st? and is a 4 letter word",
+  answer: "test",
+  title: "Test Day",
+  options: [
+    {label: "Demo", short: "A dummy reward", long: "your reward/gift would be shown here:) I love you baby", rewardType: 'text'},
+  ]
+};
+
+function addTestDay(){
+  if(!state.content.find(x=>x.day===0)){
+    // insert at start so it's easy to find
+    state.content.unshift(TEST_DAY);
+  }
+}
+function removeTestDay(){
+  const idx = state.content.findIndex(x=>x.day===0);
+  if(idx !== -1) state.content.splice(idx,1);
+}
 function saveState(){
   // Persist only metadata so edits to DEFAULT_CONTENT in the file take effect.
-  const toSave = { opened: state.opened, chosen: state.chosen, responses: state.responses };
+  const toSave = { opened: state.opened, chosen: state.chosen, responses: state.responses, settings: state.settings };
   localStorage.setItem("calState",JSON.stringify(toSave));
 }
 function loadState(){
@@ -545,6 +567,9 @@ function loadState(){
     if(parsed.opened) state.opened = parsed.opened;
     if(parsed.chosen) state.chosen = parsed.chosen;
     if(parsed.responses) state.responses = parsed.responses;
+    if(parsed.settings) state.settings = parsed.settings;
+    // if the saved settings requested the test day, add it at runtime
+    if(state.settings && state.settings.showTestDay){ addTestDay(); }
   }catch(e){
     console.error('Failed to parse calState from localStorage', e);
   }
@@ -563,11 +588,11 @@ function renderCalendar(){
   state.content.forEach(item=>{
     const day=item.day;
     const isOpen = !!state.opened[day];
-    // only allow opening when it's December and the calendar day has arrived
-    const canOpen = isDecember && day <= decToday;
+    // Day 0 (test day) is always available. Otherwise only allow opening when it's December and the calendar day has arrived
+    const canOpen = (day === 0) || (isDecember && day <= decToday);
 
-    // summary should hide the question until the day arrives (unless already opened)
-    const summaryText = (isOpen || (isDecember && day <= decToday)) ? item.question : `Question will be revealed on Dec ${day}`;
+    // summary should hide the question until the day arrives (unless already opened). Test day (0) always shows its question.
+    const summaryText = (day === 0) || isOpen || (isDecember && day <= decToday) ? item.question : `Question will be revealed on Dec ${day}`;
 
     const door=document.createElement("article");
     door.className="door";
@@ -851,6 +876,30 @@ document.getElementById("settingsBtn").onclick = () => {
   };
 
   card.appendChild(btn);
+  // Test Day toggle
+  const tglWrap = document.createElement('div');
+  tglWrap.style.marginTop = '12px';
+  tglWrap.innerHTML = `
+    <label style="display:flex;align-items:center;gap:10px">
+      <input type="checkbox" id="testDayToggle"> <strong>Show Test Day</strong>
+    </label>
+    <div class="small" style="margin-top:6px">Enable a test tile with dummy content for development. Disabled by default.</div>
+  `;
+  card.appendChild(tglWrap);
+  optionsArea.appendChild(card);
+
+  // initialize toggle state from runtime settings
+  const testToggle = document.getElementById('testDayToggle');
+  testToggle.checked = !!state.settings && !!state.settings.showTestDay;
+  testToggle.onchange = (e)=>{
+    const on = e.target.checked;
+    state.settings = state.settings || {};
+    state.settings.showTestDay = !!on;
+    if(on){ addTestDay(); }
+    else { removeTestDay(); }
+    saveState();
+    renderCalendar();
+  };
   optionsArea.appendChild(card);
   modal.style.display = 'grid';
 };
